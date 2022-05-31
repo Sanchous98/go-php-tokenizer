@@ -25,7 +25,7 @@ func lexPhpHeredoc(l *Lexer) lexState {
 
 	for {
 		if l.hasPrefix(op) {
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
 			l.advance(len(op))
@@ -46,7 +46,7 @@ func lexPhpHeredoc(l *Lexer) lexState {
 			l.next() // the escaped char
 		case '$':
 			// this is a variable
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
 			lexPhpVariable(l) // meh

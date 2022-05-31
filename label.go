@@ -1,85 +1,88 @@
 package tokenizer
 
-import "strings"
+import (
+	"strings"
+)
 
-var phpMagicKeywords = map[string]ItemType{
-	"abstract":        TAbstract,
-	"array":           TArray,
-	"as":              TAs,
-	"break":           TBreak,
-	"callable":        TCallable,
-	"case":            TCase,
-	"catch":           TCatch,
-	"class":           TClass,
+// PhpMagicKeywords can be hooked to add some extra reserved words
+var PhpMagicKeywords = map[string]ItemType{
+	"ABSTRACT":        TAbstract,
+	"ARRAY":           TArray,
+	"AS":              TAs,
+	"BREAK":           TBreak,
+	"CALLABLE":        TCallable,
+	"CASE":            TCase,
+	"CATCH":           TCatch,
+	"CLASS":           TClass,
 	"__CLASS__":       TClassC,
-	"clone":           TClone,
-	"const":           TConst,
-	"continue":        TContinue,
-	"declare":         TDeclare,
-	"default":         TDefault,
+	"CLONE":           TClone,
+	"CONST":           TConst,
+	"CONTINUE":        TContinue,
+	"DECLARE":         TDeclare,
+	"DEFAULT":         TDefault,
 	"__DIR__":         TDir,
-	"do":              TDo,
-	"echo":            TEcho,
-	"else":            TElse,
-	"elseif":          TElseif,
-	"empty":           TEmpty,
-	"enddeclare":      TEnddeclare,
-	"endfor":          TEndfor,
-	"endforeach":      TEndforeach,
-	"endif":           TEndif,
-	"endswitch":       TEndswitch,
-	"endwhile":        TEndwhile,
-	"eval":            TEval,
-	"exit":            TExit,
-	"die":             TExit,
-	"extends":         TExtends,
+	"DO":              TDo,
+	"ECHO":            TEcho,
+	"ELSE":            TElse,
+	"ELSEIF":          TElseif,
+	"EMPTY":           TEmpty,
+	"ENDDECLARE":      TEnddeclare,
+	"ENDFOR":          TEndfor,
+	"ENDFOREACH":      TEndforeach,
+	"ENDIF":           TEndif,
+	"ENDSWITCH":       TEndswitch,
+	"ENDVAL":          TEndwhile,
+	"EVAL":            TEval,
+	"EXIT":            TExit,
+	"DIE":             TExit,
+	"EXTENDS":         TExtends,
 	"__FILE__":        TFile,
-	"final":           TFinal,
-	"finally":         TFinally,
-	"for":             TFor,
-	"foreach":         TForeach,
-	"function":        TFunction,
-	"cfunction":       TFunction, // ?
+	"FINAL":           TFinal,
+	"FINALLY":         TFinally,
+	"FOR":             TFor,
+	"FOREACH":         TForeach,
+	"FUNCTION":        TFunction,
+	"CFUNCTION":       TFunction, // ?
 	"__FUNCTION__":    TFuncC,
-	"global":          TGlobal,
-	"goto":            TGoto,
-	"__halt_compiler": THaltCompiler,
-	"if":              TIf,
-	"implements":      TImplements,
-	"include":         TInclude,
-	"include_once":    TIncludeOnce,
-	"instanceof":      TInstanceof,
-	"insteadof":       TInsteadof,
-	"interface":       TInterface,
-	"isset":           TIsset,
+	"GLOBAL":          TGlobal,
+	"GOTO":            TGoto,
+	"__HALT_COMPILER": THaltCompiler,
+	"IF":              TIf,
+	"IMPLEMENTS":      TImplements,
+	"INCLUDE":         TInclude,
+	"INCLUDE_ONCE":    TIncludeOnce,
+	"INSTANCEOF":      TInstanceof,
+	"INSTEADOF":       TInsteadof,
+	"INTERFACE":       TInterface,
+	"ISSET":           TIsset,
 	"__LINE__":        TLine,
-	"list":            TList,
-	"and":             TLogicalAnd,
-	"or":              TLogicalOr,
-	"xor":             TLogicalXor,
+	"LIST":            TList,
+	"AND":             TLogicalAnd,
+	"OR":              TLogicalOr,
+	"XOR":             TLogicalXor,
 	"__METHOD__":      TMethodC,
-	"namespace":       TNamespace,
+	"NAMESPACE":       TNamespace,
 	"__NAMESPACE__":   TNsC,
-	"new":             TNew,
-	"print":           TPrint,
-	"private":         TPrivate,
-	"public":          TPublic,
-	"protected":       TProtected,
-	"require":         TRequire,
-	"require_once":    TRequireOnce,
-	"return":          TReturn,
-	"static":          TStatic,
-	"switch":          TSwitch,
-	"throw":           TThrow,
-	"trait":           TTrait,
+	"NEW":             TNew,
+	"PRINT":           TPrint,
+	"PRIVATE":         TPrivate,
+	"PUBLIC":          TPublic,
+	"PROTECTED":       TProtected,
+	"REQUIRE":         TRequire,
+	"REQUIRE_ONCE":    TRequireOnce,
+	"RETURN":          TReturn,
+	"STATIC":          TStatic,
+	"SWITCH":          TSwitch,
+	"THROW":           TThrow,
+	"TRAIT":           TTrait,
 	"__TRAIT__":       TTraitC,
-	"try":             TTry,
-	"unset":           TUnset,
-	"use":             TUse,
-	"var":             TVar,
-	"while":           TWhile,
-	"yield":           TYield,
-	// yield from T_YIELD_FROM TODO special case
+	"TRY":             TTry,
+	"UNSET":           TUnset,
+	"USE":             TUse,
+	"VAR":             TVar,
+	"WHILE":           TWhile,
+	"YIELD":           TYield,
+	"YIELD FROM":      TYieldFrom,
 }
 
 func lexPhpVariable(l *Lexer) lexState {
@@ -94,12 +97,11 @@ func lexPhpVariable(l *Lexer) lexState {
 }
 
 func labelType(lbl string) ItemType {
-	// check for phpMagicKeywords
-	if v, ok := phpMagicKeywords[strings.ToLower(lbl)]; ok {
-		return v
-	}
-	if v, ok := phpMagicKeywords[lbl]; ok {
-		return v
+	// check for PhpMagicKeywords
+	for keyword, itemType := range PhpMagicKeywords {
+		if strings.EqualFold(keyword, lbl) {
+			return itemType
+		}
 	}
 	return TString
 }

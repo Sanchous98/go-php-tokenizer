@@ -1,23 +1,36 @@
 package tokenizer
 
+import "unicode"
+
+const (
+	binaryDigits  = "_01"
+	octalDigits   = binaryDigits + "234567"
+	decimalDigits = octalDigits + "89"
+	hexDigits     = decimalDigits + "abcdefABCDEF"
+)
+
 func lexNumber(l *Lexer) lexState {
 	// optional leading sign
 	l.accept("+-")
-	digits := "0123456789"
-	allowDecimal := true
+	digits := decimalDigits
+	var allowDecimal bool
 	t := TLnumber
+
 	if l.accept("0") {
-		// can be octal or hexa
-		if l.accept("xX") {
-			// hex
-			digits = "0123456789abcdefABCDEF"
-			allowDecimal = false
-		} else if l.peek() != '.' {
-			// octal
-			digits = "01234567"
-			allowDecimal = false
+		switch {
+		case l.accept("xX"):
+			digits = hexDigits
+		case l.accept("bB"):
+			digits = binaryDigits
+		case l.accept("oO"), l.peek() != '.':
+			digits = octalDigits
+		default:
+			allowDecimal = true
 		}
+	} else {
+		allowDecimal = true
 	}
+
 	l.acceptRun(digits)
 
 	if allowDecimal {
@@ -32,8 +45,9 @@ func lexNumber(l *Lexer) lexState {
 		}
 	}
 
+	peek := l.peek()
 	// next thing mustn't be alphanumeric
-	if isAlphaNumeric(l.peek()) {
+	if unicode.IsLetter(peek) && unicode.IsDigit(peek) {
 		l.next()
 		return l.error("bad number syntax")
 	}

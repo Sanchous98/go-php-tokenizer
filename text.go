@@ -3,7 +3,7 @@ package tokenizer
 func lexText(l *Lexer) lexState {
 	for {
 		if l.hasPrefix("<?") {
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TInlineHtml)
 			}
 			return lexPhpOpen
@@ -17,7 +17,7 @@ func lexText(l *Lexer) lexState {
 	}
 
 	// reached eof
-	if l.pos > l.start {
+	if l.position > l.start {
 		l.emit(TInlineHtml)
 	}
 	l.emit(TEof)

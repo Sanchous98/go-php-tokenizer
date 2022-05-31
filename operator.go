@@ -4,6 +4,7 @@ var lexPhpOps = map[string]ItemType{
 	"&=":  TAndEqual,
 	"&&":  TBooleanAnd,
 	"||":  TBooleanOr,
+	"??=": TCoalesceEqual,
 	"??":  TCoalesce,
 	"?>":  TCloseTag,
 	".=":  TConcatEqual,

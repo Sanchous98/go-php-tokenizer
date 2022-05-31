@@ -9,7 +9,7 @@ func lexPhp(l *Lexer) lexState {
 			l.acceptRun(" \r\n\t")
 			l.emit(TWhitespace)
 		case '(':
-			return lexPhpPossibleCast
+			return lexPossibleCast
 		case ')', ',', '{', '}', ';':
 			l.emit(Rune(l.next()))
 		case '$':

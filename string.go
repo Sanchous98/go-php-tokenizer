@@ -25,7 +25,6 @@ func lexPhpStringConst(l *Lexer) lexState {
 		if c == '\\' {
 			// advance (ignore) one
 			l.next()
-			continue
 		}
 	}
 }
@@ -41,7 +40,7 @@ func lexPhpStringWhitespace(l *Lexer) lexState {
 			return nil
 		case '"':
 			// end of string
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
 			l.next() // "
@@ -54,7 +53,7 @@ func lexPhpStringWhitespace(l *Lexer) lexState {
 			l.next() // the escaped char
 		case '$':
 			// this is a variable
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
 			// meh :(
@@ -76,7 +75,7 @@ func lexPhpStringWhitespaceBack(l *Lexer) lexState {
 			return nil
 		case '`':
 			// end of string
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
 			l.next() // `
@@ -89,7 +88,7 @@ func lexPhpStringWhitespaceBack(l *Lexer) lexState {
 			l.next() // the escaped char
 		case '$':
 			// this is a variable
-			if l.pos > l.start {
+			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
 			// meh :(

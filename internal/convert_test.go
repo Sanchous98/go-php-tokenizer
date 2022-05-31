@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"reflect"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -11,30 +11,20 @@ func TestBytesToString(t *testing.T) {
 		args []byte
 		want string
 	}{
-		{"test bytes to string conversion", []byte("Test"), "Test"},
+		{
+			"test bytes to string conversion english, numbers & symbols",
+			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~"),
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~",
+		},
+		{
+			"test bytes to string conversion russian, numbers & symbols",
+			[]byte("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~"),
+			"АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := BytesToString(tt.args); got != tt.want {
-				t.Errorf("BytesToString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRunesToString(t *testing.T) {
-	tests := []struct {
-		name string
-		args []rune
-		want string
-	}{
-		{"test runes to string conversion", []rune("Test"), "Test"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := RunesToString(tt.args); got != tt.want {
-				t.Errorf("RunesToString() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, BytesToString(tt.args), tt.want)
 		})
 	}
 }
@@ -45,13 +35,38 @@ func TestStringToBytes(t *testing.T) {
 		args string
 		want []byte
 	}{
-		{"test bytes to string conversion", "Test", []byte("Test")},
+		{
+			"test string to bytes conversion english, numbers & symbols",
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~",
+			[]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~"),
+		},
+		{
+			"test string to bytes conversion russian, numbers & symbols",
+			"АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~",
+			[]byte("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := StringToBytes(tt.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("StringToBytes() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, StringToBytes(tt.args), tt.want)
 		})
+	}
+}
+
+func BenchmarkBytesToString(b *testing.B) {
+	b.ReportAllocs()
+	testRunes := []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~")
+
+	for i := 0; i < b.N; i++ {
+		_ = BytesToString(testRunes)
+	}
+}
+
+func BenchmarkStringToBytes(b *testing.B) {
+	b.ReportAllocs()
+	testRunes := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~"
+
+	for i := 0; i < b.N; i++ {
+		_ = StringToBytes(testRunes)
 	}
 }

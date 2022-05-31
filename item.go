@@ -2,17 +2,16 @@ package tokenizer
 
 import (
 	"fmt"
-	"github.com/Sanchous98/go-php/core/convert"
-	"github.com/Sanchous98/go-php/core/phpv"
 	"path"
 	"runtime"
 )
 
 //go:generate stringer -type=ItemType -linecomment
-type ItemType int
+type ItemType int32
 
 const (
-	itemError ItemType = 0
+	itemError ItemType = -1
+	none      ItemType = 0
 	TEof      ItemType = 1
 	TThrow    ItemType = iota + 256 // T_THROW
 	_
@@ -165,15 +164,14 @@ const (
 )
 
 type Item struct {
-	Type       ItemType
-	Data       string
-	Filename   string
-	Line, Char int
+	Type ItemType
+	Data string
+	l    Location
 }
 
 func (i *Item) Errorf(format string, arg ...any) error {
 	e := fmt.Sprintf(format, arg...)
-	return fmt.Errorf("%s in %s on line %d", e, i.Filename, i.Line)
+	return fmt.Errorf("%s in %s on line %d", e, i.l.Filename, i.l.Line)
 }
 
 func (i *Item) String() string {
@@ -182,7 +180,7 @@ func (i *Item) String() string {
 
 func (i ItemType) Name() string {
 	if i > ItemMax {
-		return convert.RunesToString([]rune{'\'', i.Rune(), '\''})
+		return "'" + string(i.Rune()) + "'"
 	}
 	return i.String()
 }
@@ -215,8 +213,8 @@ func (i *Item) Unexpected() error {
 	return i.Errorf("syntax error from %s:%d, unexpected %s", path.Base(f), l, i)
 }
 
-func (i *Item) Loc() *phpv.Loc {
-	return &phpv.Loc{Filename: i.Filename, Line: i.Line, Char: i.Char}
+func (i *Item) Location() Location {
+	return i.l
 }
 
 func Rune(r rune) ItemType {

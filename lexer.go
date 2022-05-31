@@ -5,45 +5,50 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/Sanchous98/go-php/core/convert"
+	. "go-php-tokenizer/internal"
 	"io"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
 const eof = rune(-1)
 
+var HookLexer lexState = lexText
+var BytesPool = Pool[bytes.Buffer]{New: func() *bytes.Buffer { return new(bytes.Buffer) }}
+
 type lexState func(l *Lexer) lexState
 
 type Lexer struct {
-	input      *bufio.Reader
-	fn         string
-	start, pos int
-	width      int
-	items      chan *Item
-	base       lexState
+	input           *bufio.Reader
+	filename        string
+	start, position int
+	width           int
+	items           chan Item
+	current         Item
+	base            lexState
 
 	inputRst []byte
 	output   bytes.Buffer
 
-	sLine, sChar int // start line/char
-	cLine, cChar int // current line/char
-	pLine, pChar int // previous line/char (for backup)
+	startLine, startChar       int // start line/char
+	currentLine, currentChar   int // current line/char
+	previousLine, previousChar int // previous line/char (for backup)
 
 	baseStack []lexState
 }
 
-func NewLexer(i io.Reader, fn string, lexFunction func(*Lexer) lexState) *Lexer {
+func NewLexer(i io.Reader, filename string, lexFunction func(*Lexer) lexState) *Lexer {
 	res := &Lexer{
-		input: bufio.NewReader(i),
-		fn:    fn, // filename, for position information
-		items: make(chan *Item, 2),
-		sLine: 1,
-		cLine: 1,
+		input:       bufio.NewReader(i),
+		filename:    filename,
+		items:       make(chan Item, 2),
+		startLine:   1,
+		currentLine: 1,
 	}
 
 	if lexFunction == nil {
-		lexFunction = lexText
+		lexFunction = HookLexer
 	}
 
 	go res.run(lexFunction(res))
@@ -62,29 +67,30 @@ func (l *Lexer) pop() {
 }
 
 func (l *Lexer) write(s string) (int, error) {
-	return l.output.Write([]byte(s))
+	return l.output.WriteString(s)
 }
 
 func (l *Lexer) NextItem() (*Item, error) {
-	i := <-l.items
-	if i == nil {
-		// mh?
-		return &Item{Type: TEof}, nil
+	l.current = <-l.items
+	if l.current.Type == none {
+		l.current = Item{Type: TEof}
 	}
-	if i.Type == itemError {
-		return nil, errors.New(i.Data)
+	if l.current.Type == itemError {
+		return nil, errors.New(l.current.Data)
 	}
-	return i, nil
+	return &l.current, nil
+}
+
+func (l *Lexer) Current() *Item {
+	return &l.current
 }
 
 func (l *Lexer) hasPrefix(s string) bool {
-	v := l.peekString(len(s))
-	return v == s
+	return l.peekString(len(s)) == s
 }
 
 func (l *Lexer) hasPrefixI(s string) bool {
-	v := l.peekString(len(s))
-	return strings.ToLower(v) == strings.ToLower(s)
+	return strings.ToLower(l.peekString(len(s))) == strings.ToLower(s)
 }
 
 func (l *Lexer) run(state lexState) {
@@ -96,9 +102,8 @@ func (l *Lexer) run(state lexState) {
 }
 
 func (l *Lexer) emit(t ItemType) {
-	l.items <- &Item{t, l.output.String(), l.fn, l.sLine, l.sChar}
-	l.start = l.pos
-	l.sLine, l.sChar = l.cLine, l.cChar
+	l.items <- Item{t, BytesToString(l.output.Bytes()), Location{l.filename, l.startLine, l.startChar}}
+	l.startLine, l.startChar, l.start = l.currentLine, l.currentChar, l.position
 	l.output.Reset()
 }
 
@@ -116,32 +121,33 @@ func (l *Lexer) next() rune {
 	} else {
 		r, l.width, err = l.input.ReadRune()
 		if err != nil {
-			if err == io.EOF {
-				return eof
+			if err != io.EOF {
+				l.error("%v", err)
 			}
-			return eof // TODO FIXME error reporting?
+
+			return eof
 		}
 	}
 
-	l.pos += l.width
-	l.pLine, l.pChar = l.cLine, l.cChar
+	l.position += l.width
+	l.previousLine, l.previousChar = l.currentLine, l.currentChar
 	l.output.WriteRune(r)
-	l.cChar += 1 // char counts in characters, not in bytes
+	l.currentChar += 1 // char counts in characters, not in bytes
 	if r == '\n' {
-		l.cLine += 1
-		l.cChar = 0
+		l.currentLine += 1
+		l.currentChar = 0
 	}
 	return r
 }
 
 func (l *Lexer) ignore() {
-	l.start = l.pos
-	l.sLine, l.sChar = l.cLine, l.cChar
+	l.start = l.position
+	l.startLine, l.startChar = l.currentLine, l.currentChar
 	l.output.Reset()
 }
 
 func (l *Lexer) reset() {
-	tmp := []byte(l.output.String())
+	tmp := l.output.Bytes()
 
 	if len(l.inputRst) == 0 {
 		l.inputRst = tmp
@@ -150,13 +156,13 @@ func (l *Lexer) reset() {
 	}
 
 	l.output.Reset()
-	l.pos -= len(tmp)
-	l.cLine, l.cChar = l.sLine, l.sChar
+	l.position -= len(tmp)
+	l.currentLine, l.currentChar = l.startLine, l.startChar
 }
 
 func (l *Lexer) backup() {
 	if l.width == 0 {
-		panic("lexer backup called without a previous read")
+		return
 	}
 
 	// update buffers
@@ -168,13 +174,13 @@ func (l *Lexer) backup() {
 
 	l.inputRst = append(r, l.inputRst...)
 
-	l.pos -= l.width
-	l.cLine, l.cChar = l.pLine, l.pChar
+	l.position -= l.width
+	l.currentLine, l.currentChar = l.previousLine, l.previousChar
 	l.width = 0
 }
 
 func (l *Lexer) peek() rune {
-	s := []byte(l.peekString(utf8.UTFMax))
+	s := StringToBytes(l.peekString(utf8.UTFMax))
 	if len(s) == 0 {
 		return eof
 	}
@@ -185,18 +191,18 @@ func (l *Lexer) peek() rune {
 func (l *Lexer) peekString(ln int) string {
 	if len(l.inputRst) > 0 {
 		if len(l.inputRst) >= ln {
-			return convert.BytesToString(l.inputRst[:ln])
+			return BytesToString(l.inputRst[:ln])
 		}
 		res := l.inputRst
 		s, _ := l.input.Peek(ln - len(res))
-		return convert.BytesToString(append(res, s...))
+		return BytesToString(append(res, s...))
 	}
 	s, _ := l.input.Peek(ln)
-	return convert.BytesToString(s)
+	return BytesToString(s)
 }
 
 func (l *Lexer) advance(c int) {
-	for i := 0; i < c; i += 1 {
+	for i := 0; i < c; i++ {
 		// we do that for two purposes:
 		// 1. correctly skip utf-8 characters
 		// 2. detect linebreaks so we count these correctly
@@ -216,7 +222,7 @@ func (l *Lexer) acceptFixed(s string) bool {
 	if !l.hasPrefix(s) {
 		return false
 	}
-	l.advance(len([]rune(s))) // CL 108985 (May 2018, for Go 1.11)
+	l.advance(len(s))
 	return true
 }
 
@@ -224,7 +230,7 @@ func (l *Lexer) acceptFixedI(s string) bool {
 	if !l.hasPrefixI(s) {
 		return false
 	}
-	l.advance(len([]rune(s))) // CL 108985 (May 2018, for Go 1.11)
+	l.advance(len(s))
 	return true
 }
 
@@ -237,18 +243,23 @@ func (l *Lexer) acceptSpaces() string {
 }
 
 func (l *Lexer) acceptRun(valid string) string {
-	b := &bytes.Buffer{}
+	b := BytesPool.Get()
+	defer func() {
+		b.Reset()
+		BytesPool.Put(b)
+	}()
+
 	for {
 		v := l.next()
-		if v == eof {
-			return b.String()
-		}
-		if strings.IndexRune(valid, v) >= 0 {
+		switch {
+		case strings.IndexRune(valid, v) == -1:
+			l.backup()
+			fallthrough
+		case v == eof:
+			return BytesToString(b.Bytes())
+		default:
 			b.WriteRune(v)
-			continue
 		}
-		l.backup()
-		return b.String()
 	}
 }
 
@@ -258,53 +269,44 @@ func (l *Lexer) acceptUntil(s string) {
 }
 
 func (l *Lexer) acceptUntilFixed(s string) {
-	var p int
-	s2 := []rune(s)
-	for {
-		if p >= len(s2) {
-			return // ok
-		}
+loop:
+	for _, symbol := range s {
 		c := l.next()
 		if c == eof {
 			return
 		}
-		if c == s2[p] {
-			p += 1
-		} else {
-			p = 0
+		if c != symbol {
+			goto loop
 		}
 	}
 }
 
 func (l *Lexer) acceptPhpLabel() string {
-	// accept a php label, first char is _ or alpha, next chars are are alphanumeric or _
+	// accept a php label, first char is _ or alpha, next chars are alphanumeric or _
 	labelStart := l.output.Len()
 	c := l.next()
-	switch {
-	case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', c == '_', 0x7f <= c:
-	default:
+
+	if !(unicode.IsLetter(c) || c == '_' || 0x7f <= c) {
 		l.backup()
 		// we didn't read a single char
 		return ""
 	}
 
 	for {
-		c := l.next()
-		switch {
-		case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', '0' <= c && c <= '9', c == '_', 0x7f <= c:
-		default:
+		c = l.next()
+
+		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || 0x7f <= c) {
 			l.backup()
-			return convert.BytesToString(l.output.Bytes()[labelStart:])
+			return BytesToString(l.output.Bytes()[labelStart:])
 		}
 	}
 }
 
 func (l *Lexer) error(format string, args ...any) lexState {
-	l.items <- &Item{
+	l.items <- Item{
 		itemError,
 		fmt.Sprintf(format, args...),
-		l.fn,
-		l.sLine, l.sChar,
+		Location{Filename: l.filename, Line: l.startLine, Char: l.startChar},
 	}
 	return nil
 }
