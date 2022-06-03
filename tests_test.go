@@ -6,17 +6,19 @@ import (
 )
 
 type lexerTestCase struct {
-	name      string
-	lexer     *Lexer
-	wantType  ItemType
-	wantValue string
+	name       string
+	lexer      *Lexer
+	wantTypes  []ItemType
+	wantValues []string
 }
 
 func (tt *lexerTestCase) tokenChecker() func(*testing.T) {
 	return func(t *testing.T) {
-		item, err := tt.lexer.NextItem()
-		assert.NoError(t, err)
-		assert.Equal(t, tt.wantType, item.Type)
-		assert.Equal(t, tt.wantValue, item.Data)
+		for i := 0; i < len(tt.wantTypes); i++ {
+			item, err := tt.lexer.NextItem()
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantTypes[i], item.Type)
+			assert.Equal(t, tt.wantValues[i], item.Data)
+		}
 	}
 }

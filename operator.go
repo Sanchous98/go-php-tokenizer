@@ -1,6 +1,6 @@
 package tokenizer
 
-var lexPhpOps = map[string]ItemType{
+var Operators = map[string]ItemType{
 	"&=":  TAndEqual,
 	"&&":  TBooleanAnd,
 	"||":  TBooleanOr,
@@ -37,14 +37,14 @@ var lexPhpOps = map[string]ItemType{
 	"^=":  TXorEqual,
 }
 
-func lexPhpOperator(l *Lexer) lexState {
-	if t, ok := lexPhpOps[l.peekString(3)]; ok {
+func lexOperator(l *Lexer) lexState {
+	if t, ok := Operators[l.peekString(3, 0)]; ok {
 		l.advance(3)
 		l.emit(t)
 		return l.base
 	}
 
-	if t, ok := lexPhpOps[l.peekString(2)]; ok {
+	if t, ok := Operators[l.peekString(2, 0)]; ok {
 		l.advance(2)
 		if t == TCloseTag {
 			// falling back to HTML mode - make linebreak part of closing tag
@@ -55,6 +55,18 @@ func lexPhpOperator(l *Lexer) lexState {
 			return l.base
 		}
 		l.emit(t)
+		return l.base
+	}
+
+	if t := l.peek(0); t == '&' {
+		l.next()
+		probableVar := l.peekAfterWhitespaces()
+
+		if probableVar == '$' {
+			l.emit(TAmpersandFollowedByVarOrVarArg)
+		} else {
+			l.emit(TAmpersandNotFollowedByVarOrVarArg)
+		}
 		return l.base
 	}
 

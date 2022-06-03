@@ -85,7 +85,7 @@ var PhpMagicKeywords = map[string]ItemType{
 	"YIELD FROM":      TYieldFrom,
 }
 
-func lexPhpVariable(l *Lexer) lexState {
+func lexVariable(l *Lexer) lexState {
 	l.advance(1) // '$' (already confirmed)
 	if l.acceptPhpLabel() == "" {
 		l.emit(Rune('$'))
@@ -103,12 +103,23 @@ func labelType(lbl string) ItemType {
 			return itemType
 		}
 	}
+
 	return TString
 }
 
-func lexPhpString(l *Lexer) lexState {
+func lexStringLabel(l *Lexer) lexState {
 	lbl := l.acceptPhpLabel()
 	t := labelType(lbl)
+
+	if t == TString {
+		switch strings.IndexByte(lbl, '\\') {
+		case -1:
+		case 0:
+			t = TNameFullyQualified
+		default:
+			t = TNameQualified
+		}
+	}
 
 	l.emit(t)
 	if t == THaltCompiler {

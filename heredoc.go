@@ -1,22 +1,22 @@
 package tokenizer
 
-func lexPhpHeredoc(l *Lexer) lexState {
+func lexHeredoc(l *Lexer) lexState {
 	// we have a string starting with <<<
 	if !l.acceptFixed("<<<") {
-		l.reset()
-		return lexPhpOperator // I guess?
+		l.Reset()
+		return lexOperator // I guess?
 	}
 	l.acceptSpaces()
 
 	op := l.acceptPhpLabel()
 	if op == "" {
-		l.reset()
-		return lexPhpOperator
+		l.Reset()
+		return lexOperator
 	}
 
 	if !l.accept("\r\n") {
-		l.reset()
-		return lexPhpOperator
+		l.Reset()
+		return lexOperator
 	}
 
 	l.emit(TStartHeredoc)
@@ -33,7 +33,7 @@ func lexPhpHeredoc(l *Lexer) lexState {
 			break
 		}
 
-		c := l.peek()
+		c := l.peek(0)
 
 		switch c {
 		case eof:
@@ -49,7 +49,7 @@ func lexPhpHeredoc(l *Lexer) lexState {
 			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
-			lexPhpVariable(l) // meh
+			lexVariable(l) // meh
 		default:
 			l.next()
 		}

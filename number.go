@@ -22,7 +22,7 @@ func lexNumber(l *Lexer) lexState {
 			digits = hexDigits
 		case l.accept("bB"):
 			digits = binaryDigits
-		case l.accept("oO"), l.peek() != '.':
+		case l.accept("oO"), l.peek(0) != '.':
 			digits = octalDigits
 		default:
 			allowDecimal = true
@@ -45,7 +45,7 @@ func lexNumber(l *Lexer) lexState {
 		}
 	}
 
-	peek := l.peek()
+	peek := l.peek(0)
 	// next thing mustn't be alphanumeric
 	if unicode.IsLetter(peek) && unicode.IsDigit(peek) {
 		l.next()

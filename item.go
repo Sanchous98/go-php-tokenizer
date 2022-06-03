@@ -13,7 +13,7 @@ const (
 	itemError ItemType = -1
 	none      ItemType = 0
 	TEof      ItemType = 1
-	TThrow    ItemType = iota + 256 // T_THROW
+	TThrow    ItemType = iota + 255 // T_THROW
 	_
 	TInclude                           // T_INCLUDE
 	TIncludeOnce                       // T_INCLUDE_ONCE

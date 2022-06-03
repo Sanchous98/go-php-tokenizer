@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/valyala/bytebufferpool"
 	. "go-php-tokenizer/internal"
 	"io"
 	"strings"
@@ -15,7 +16,6 @@ import (
 const eof = rune(-1)
 
 var HookLexer lexState = lexText
-var BytesPool = Pool[bytes.Buffer]{New: func() *bytes.Buffer { return new(bytes.Buffer) }}
 
 type lexState func(l *Lexer) lexState
 
@@ -38,11 +38,11 @@ type Lexer struct {
 	baseStack []lexState
 }
 
-func NewLexer(i io.Reader, filename string, lexFunction func(*Lexer) lexState) *Lexer {
+func NewLexer(i io.Reader, filename string, lexFunction lexState) *Lexer {
 	res := &Lexer{
 		input:       bufio.NewReader(i),
 		filename:    filename,
-		items:       make(chan Item, 2),
+		items:       make(chan Item, 8),
 		startLine:   1,
 		currentLine: 1,
 	}
@@ -56,9 +56,9 @@ func NewLexer(i io.Reader, filename string, lexFunction func(*Lexer) lexState) *
 	return res
 }
 
-func (l *Lexer) push(s lexState) {
+func (l *Lexer) push(state lexState) {
 	l.baseStack = append(l.baseStack, l.base)
-	l.base = s
+	l.base = state
 }
 
 func (l *Lexer) pop() {
@@ -78,7 +78,7 @@ func (l *Lexer) NextItem() (*Item, error) {
 	if l.current.Type == itemError {
 		return nil, errors.New(l.current.Data)
 	}
-	return &l.current, nil
+	return l.Current(), nil
 }
 
 func (l *Lexer) Current() *Item {
@@ -86,23 +86,23 @@ func (l *Lexer) Current() *Item {
 }
 
 func (l *Lexer) hasPrefix(s string) bool {
-	return l.peekString(len(s)) == s
+	return l.peekString(len(s), 0) == s
 }
 
 func (l *Lexer) hasPrefixI(s string) bool {
-	return strings.ToLower(l.peekString(len(s))) == strings.ToLower(s)
+	return strings.ToLower(l.peekString(len(s), 0)) == strings.ToLower(s)
 }
 
 func (l *Lexer) run(state lexState) {
 	l.push(state)
-	for state = l.base; state != nil; {
-		state = state(l)
+	for s := l.base; s != nil; {
+		s = s(l)
 	}
 	close(l.items)
 }
 
 func (l *Lexer) emit(t ItemType) {
-	l.items <- Item{t, BytesToString(l.output.Bytes()), Location{l.filename, l.startLine, l.startChar}}
+	l.items <- Item{t, l.output.String(), Location{l.filename, l.startLine, l.startChar}}
 	l.startLine, l.startChar, l.start = l.currentLine, l.currentChar, l.position
 	l.output.Reset()
 }
@@ -146,7 +146,7 @@ func (l *Lexer) ignore() {
 	l.output.Reset()
 }
 
-func (l *Lexer) reset() {
+func (l *Lexer) Reset() {
 	tmp := l.output.Bytes()
 
 	if len(l.inputRst) == 0 {
@@ -179,8 +179,8 @@ func (l *Lexer) backup() {
 	l.width = 0
 }
 
-func (l *Lexer) peek() rune {
-	s := StringToBytes(l.peekString(utf8.UTFMax))
+func (l *Lexer) peek(offset int) rune {
+	s := StringToBytes(l.peekString(1, offset))
 	if len(s) == 0 {
 		return eof
 	}
@@ -188,17 +188,103 @@ func (l *Lexer) peek() rune {
 	return r
 }
 
-func (l *Lexer) peekString(ln int) string {
-	if len(l.inputRst) > 0 {
-		if len(l.inputRst) >= ln {
-			return BytesToString(l.inputRst[:ln])
+func (l *Lexer) peekSkipping(str string) rune {
+	var i int
+
+	for {
+		symbol := l.peek(i)
+
+		if strings.IndexRune(str, symbol) == -1 {
+			return symbol
 		}
-		res := l.inputRst
-		s, _ := l.input.Peek(ln - len(res))
-		return BytesToString(append(res, s...))
+
+		i++
 	}
-	s, _ := l.input.Peek(ln)
-	return BytesToString(s)
+}
+
+func (l *Lexer) peekUntil(str string) rune {
+	var i int
+
+	for {
+		symbol := l.peek(i)
+
+		if strings.IndexRune(str, symbol) >= 0 {
+			return symbol
+		}
+
+		i++
+	}
+}
+
+func (l *Lexer) peekAllUntil(str string) string {
+	var i int
+
+	for {
+		symbol := l.peek(i)
+
+		if strings.IndexRune(str, symbol) >= 0 {
+			return l.peekString(i+1, 0)
+		}
+
+		i++
+	}
+}
+
+func (l *Lexer) peekAfterWhitespaces() rune {
+	return l.peekSkipping(" \t\r\n")
+}
+
+func (l *Lexer) peekString(length, offset int) string {
+	switch {
+	case len(l.inputRst) >= length+offset:
+		return BytesToString(l.inputRst[offset : length+offset])
+	case len(l.inputRst) == 0:
+		s, _ := l.input.Peek(length + offset)
+		return BytesToString(s[offset : length+offset])
+	default:
+		s, _ := l.input.Peek(length + offset - len(l.inputRst))
+		return BytesToString(append(l.inputRst, s...)[offset : length+offset])
+	}
+}
+
+func (l *Lexer) peekAllUntilNotEscaped(str string) string {
+	var i int
+
+	for {
+		symbol := l.peek(i)
+
+		if strings.IndexRune(str, symbol) >= 0 {
+			return l.peekString(i+1, 0)
+		}
+
+		if symbol == '\\' {
+			i++
+		}
+
+		i++
+	}
+}
+
+func (l *Lexer) peekPhpLabel() string {
+	// accept a php label, first char is _ or alpha, next chars are alphanumeric or _
+	c := l.peek(0)
+
+	if !(unicode.IsLetter(c) || c == '_' || 0x7f <= c || c == '\\') {
+		l.backup()
+		// we didn't read a single char
+		return ""
+	}
+
+	var i int
+
+	for {
+		i++
+		c = l.peek(i)
+
+		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || 0x7f <= c || c == '\\') {
+			return l.peekString(i, 0)
+		}
+	}
 }
 
 func (l *Lexer) advance(c int) {
@@ -243,11 +329,8 @@ func (l *Lexer) acceptSpaces() string {
 }
 
 func (l *Lexer) acceptRun(valid string) string {
-	b := BytesPool.Get()
-	defer func() {
-		b.Reset()
-		BytesPool.Put(b)
-	}()
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
 
 	for {
 		v := l.next()
@@ -256,15 +339,22 @@ func (l *Lexer) acceptRun(valid string) string {
 			l.backup()
 			fallthrough
 		case v == eof:
-			return BytesToString(b.Bytes())
+			return b.String()
 		default:
-			b.WriteRune(v)
+			b.WriteString(string(v))
 		}
 	}
 }
 
 func (l *Lexer) acceptUntil(s string) {
-	for strings.IndexRune(s, l.next()) == -1 {
+	for strings.IndexRune(s, l.peek(0)) == -1 {
+		l.next()
+	}
+}
+
+func (l *Lexer) acceptUntilRune(r rune) {
+	for l.peek(0) != r {
+		l.next()
 	}
 }
 
@@ -286,7 +376,7 @@ func (l *Lexer) acceptPhpLabel() string {
 	labelStart := l.output.Len()
 	c := l.next()
 
-	if !(unicode.IsLetter(c) || c == '_' || 0x7f <= c) {
+	if !(unicode.IsLetter(c) || c == '_' || 0x7f <= c || c == '\\') {
 		l.backup()
 		// we didn't read a single char
 		return ""
@@ -295,7 +385,7 @@ func (l *Lexer) acceptPhpLabel() string {
 	for {
 		c = l.next()
 
-		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || 0x7f <= c) {
+		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || 0x7f <= c || c == '\\') {
 			l.backup()
 			return BytesToString(l.output.Bytes()[labelStart:])
 		}

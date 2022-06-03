@@ -6,7 +6,7 @@ func lexText(l *Lexer) lexState {
 			if l.position > l.start {
 				l.emit(TInlineHtml)
 			}
-			return lexPhpOpen
+			return lexOpen
 		}
 		if l.next() == eof {
 			break
@@ -24,12 +24,12 @@ func lexText(l *Lexer) lexState {
 	return nil
 }
 
-func lexPhpOpen(l *Lexer) lexState {
+func lexOpen(l *Lexer) lexState {
 	l.advance(2)
-	if l.peek() == '=' {
+	if l.peek(0) == '=' {
 		l.next()
 		l.emit(TOpenTagWithEcho)
-		l.push(lexPhp)
+		l.push(lex)
 		return l.base
 	}
 	l.acceptFixedI("php")
@@ -37,6 +37,6 @@ func lexPhpOpen(l *Lexer) lexState {
 		return l.error("php tag should be followed by a whitespace")
 	}
 	l.emit(TOpenTag)
-	l.push(lexPhp)
+	l.push(lex)
 	return l.base
 }

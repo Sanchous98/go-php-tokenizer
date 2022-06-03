@@ -31,7 +31,7 @@ func lexPossibleCast(l *Lexer) lexState {
 		}
 	}
 
-	l.reset() // return to initial state
+	l.Reset() // return to initial state
 	l.next()  // "("
 	l.emit(Rune('('))
 

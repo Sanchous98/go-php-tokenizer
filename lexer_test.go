@@ -1,12 +1,15 @@
 package tokenizer
 
 import (
+	"encoding/csv"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
 
-func BenchmarkLexer(b *testing.B) {
-	const code = `<?php
+const code = `<?php
 /*
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -3480,16 +3483,59 @@ class UnitOfWork implements PropertyChangedListener
         $this->hydrationCompleteHandler->hydrationComplete();
     }
 }`
-	lexer := NewLexer(strings.NewReader(code), "", nil)
-	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+func BenchmarkLexer(b *testing.B) {
+	lexers := make([]*Lexer, b.N)
+
+	for i := 0; i < len(lexers); i++ {
+		lexers[i] = NewLexer(strings.NewReader(code), "", nil)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for _, lexer := range lexers {
 		for {
 			item, err := lexer.NextItem()
 			if err != nil || item.Type == TEof {
-				lexer.reset()
+				lexer.Reset()
 				break
 			}
+		}
+	}
+}
+
+func TestLexer(t *testing.T) {
+	testFile, err := os.Open("testdata/test.php")
+	assert.NoError(t, err)
+	defer testFile.Close()
+
+	tokensFile, err := os.Open("testdata/test.csv")
+	assert.NoError(t, err)
+	defer tokensFile.Close()
+
+	tokens := csv.NewReader(tokensFile)
+	lexer := NewLexer(testFile, "", nil)
+
+	for {
+		if token, e := tokens.Read(); e == nil {
+			tokenType, _ := strconv.Atoi(token[0])
+			value := token[1]
+			position, _ := strconv.Atoi(token[2])
+			item, _ := lexer.NextItem()
+
+			if !assert.Equal(t, value, item.Data) {
+				break
+			}
+
+			if tokenType != 0 || position != 0 {
+				if !assert.Equal(t, tokenType, int(item.Type)) {
+					break
+				}
+			}
+		} else {
+			//
+			break
 		}
 	}
 }

@@ -1,9 +1,9 @@
 package tokenizer
 
-func lexPhp(l *Lexer) lexState {
+func lex(l *Lexer) lexState {
 	// let's try to find out what we are dealing with
 	for {
-		c := l.peek()
+		c := l.peek(0)
 		switch c {
 		case ' ', '\r', '\n', '\t':
 			l.acceptRun(" \r\n\t")
@@ -13,39 +13,34 @@ func lexPhp(l *Lexer) lexState {
 		case ')', ',', '{', '}', ';':
 			l.emit(Rune(l.next()))
 		case '$':
-			return lexPhpVariable
+			return lexVariable
 		case '#':
-			return lexPhpEolComment
+			return lexEolComment
 		case '/':
 			// check if // or /* (comments)
 			if l.hasPrefix("//") {
-				return lexPhpEolComment
+				return lexEolComment
 			}
 			if l.hasPrefix("/*") {
-				return lexPhpBlockComment
+				return lexBlockComment
 			}
-			return lexPhpOperator
+			return lexOperator
 		case '*', '+', '-', '&', '|', '^', '?', '>', '=', ':', '!', '@', '[', ']', '%', '~':
-			return lexPhpOperator
+			return lexOperator
 		case '.':
-			v := l.peekString(2)
+			v := l.peekString(2, 0)
 			if len(v) == 2 && v[1] >= '0' && v[1] <= '9' {
 				return lexNumber
 			}
 			// if immediately followed by a number, this is actually a DNUMBER
-			return lexPhpOperator
+			return lexOperator
 		case '<':
 			if l.hasPrefix("<<<") {
-				return lexPhpHeredoc
+				return lexHeredoc
 			}
-			return lexPhpOperator
-		case '\'', '`':
-			return lexPhpStringConst
-		case '"':
-			return lexPhpStringConst
-		case '\\': // T_NS_SEPARATOR
-			l.next()
-			l.emit(TNsSeparator)
+			return lexOperator
+		case '\'', '`', '"':
+			return lexString
 		case eof:
 			l.emit(TEof)
 			return nil
@@ -54,8 +49,8 @@ func lexPhp(l *Lexer) lexState {
 			switch {
 			case '0' <= c && c <= '9':
 				return lexNumber
-			case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', c == '_', 0x7f <= c:
-				return lexPhpString
+			case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', c == '_', 0x7f <= c, c == '\\':
+				return lexStringLabel
 			}
 			return l.error("unexpected character %c", c)
 		}

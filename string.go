@@ -1,100 +1,126 @@
 package tokenizer
 
-func lexPhpStringConst(l *Lexer) lexState {
-	stType := l.next() // " or '
-	if stType == '"' {
-		// too lazy to work this out, let's switch to the other lexer
-		l.emit(Rune('"'))
-		l.push(lexPhpStringWhitespace)
-		return l.base
-	}
-	if stType == '`' {
-		l.emit(Rune('`'))
-		l.push(lexPhpStringWhitespaceBack)
+const (
+	doubleQuote quotes = '"'
+	backQuote   quotes = '`'
+	singleQuote quotes = '\''
+)
+
+type quotes = rune
+
+func lexString(l *Lexer) lexState {
+	stType := l.peek(0)
+
+	// assert if is string
+	switch stType {
+	case singleQuote, doubleQuote, backQuote:
+	default:
 		return l.base
 	}
 
+	notConstant, length := checkIfConstant(string(stType), l)
+
+	if notConstant {
+		return lexInterpolatedString
+	}
+
+	l.advance(length)
+	l.emit(TConstantEncapsedString)
+	return l.base
+}
+
+func lexInterpolatedString(l *Lexer) lexState {
+	stType := l.next()
+	l.emit(Rune(stType)) // quotes
+
 	for {
-		c := l.next()
-		if c == stType {
-			// end of string
-			l.emit(TConstantEncapsedString)
+		switch c := l.next(); c {
+		case stType:
+			l.emit(Rune(stType))
 			return l.base
+		case '{':
+			if l.peek(0) != '$' {
+				break
+			}
+
+			l.emit(TCurlyOpen) // {
+			l.next()           // $
+			lexVariable(l)
+
+			if l.peekString(2, 0) == "->" {
+				lexObjectAccess(l)
+			}
+
+			l.emit(Rune(l.next())) // }
+		case '$':
+			lexVariable(l)
+
+			if l.peekString(2, 0) == "->" {
+				l.advance(2)
+
+				if l.peekPhpLabel() == "" {
+					break
+				}
+
+				l.emit(TObjectOperator)
+				l.acceptPhpLabel()
+				l.emit(TString)
+			}
+		case '\\':
+			l.next()
+		}
+
+		switch l.peek(0) {
+		case '{':
+			if l.peek(1) != '$' {
+				break
+			}
+
+			fallthrough
+		case '$', stType:
+			if l.output.Len() > 0 {
+				l.emit(TEncapsedAndWhitespace)
+			}
+		}
+	}
+}
+
+func checkIfConstant(stType string, l *Lexer) (notConstant bool, i int) {
+	for i = 1; ; i++ {
+		c := l.peek(i)
+
+		if string(c) == stType {
+			i++
+			return
+		}
+
+		if c == '$' || c == '{' && l.peek(i+1) == '$' {
+			notConstant = true
 		}
 
 		if c == '\\' {
-			// advance (ignore) one
-			l.next()
+			i++
 		}
 	}
 }
 
-func lexPhpStringWhitespace(l *Lexer) lexState {
-	for {
-		c := l.peek()
+func lexObjectAccess(l *Lexer) {
+	l.advance(2) // ->
+	l.emit(TObjectOperator)
 
-		switch c {
-		case eof:
-			l.emit(TEncapsedAndWhitespace)
-			l.error("unexpected eof in string")
-			return nil
-		case '"':
-			// end of string
-			if l.position > l.start {
-				l.emit(TEncapsedAndWhitespace)
-			}
-			l.next() // "
-			l.emit(Rune(c))
-			l.pop() // return to previous context
-			return l.base
-		case '\\':
-			// advance (ignore) one
-			l.next() // \
-			l.next() // the escaped char
-		case '$':
-			// this is a variable
-			if l.position > l.start {
-				l.emit(TEncapsedAndWhitespace)
-			}
-			// meh :(
-			return lexPhpVariable
-		default:
-			l.next()
+	for {
+		if c := l.peek(0); c == '}' {
+			break
 		}
-	}
-}
 
-func lexPhpStringWhitespaceBack(l *Lexer) lexState {
-	for {
-		c := l.peek()
-
-		switch c {
-		case eof:
-			l.emit(TEncapsedAndWhitespace)
-			l.error("unexpected eof in string")
-			return nil
-		case '`':
-			// end of string
-			if l.position > l.start {
-				l.emit(TEncapsedAndWhitespace)
-			}
-			l.next() // `
-			l.emit(Rune('`'))
-			l.pop() // return to previous context
-			return l.base
-		case '\\':
-			// advance (ignore) one
-			l.next() // \
-			l.next() // the escaped char
-		case '$':
-			// this is a variable
-			if l.position > l.start {
-				l.emit(TEncapsedAndWhitespace)
-			}
-			// meh :(
-			return lexPhpVariable
+		switch {
+		case l.peekString(2, 0) == "->":
+			l.advance(2) // ->
+			l.emit(TObjectOperator)
+		case len(l.acceptPhpLabel()) > 0:
+			l.emit(TString)
 		default:
-			l.next()
+			l.emit(Rune(l.next()))
 		}
 	}
 }
