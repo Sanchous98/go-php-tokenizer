@@ -3498,7 +3498,6 @@ func BenchmarkLexer(b *testing.B) {
 		for {
 			item, err := lexer.NextItem()
 			if err != nil || item.Type == TEof {
-				lexer.Reset()
 				break
 			}
 		}
@@ -3524,14 +3523,10 @@ func TestLexer(t *testing.T) {
 			position, _ := strconv.Atoi(token[2])
 			item, _ := lexer.NextItem()
 
-			if !assert.Equal(t, value, item.Data) {
-				break
-			}
+			assert.Equal(t, value, item.Data)
 
 			if tokenType != 0 || position != 0 {
-				if !assert.Equal(t, tokenType, int(item.Type)) {
-					break
-				}
+				assert.Equal(t, tokenType, int(item.Type))
 			}
 		} else {
 			//

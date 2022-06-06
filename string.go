@@ -18,7 +18,7 @@ func lexString(l *Lexer) lexState {
 		return l.base
 	}
 
-	notConstant, length := checkIfConstant(string(stType), l)
+	notConstant, length := checkIfConstant(stType, l)
 
 	if notConstant {
 		return lexInterpolatedString
@@ -85,11 +85,11 @@ func lexInterpolatedString(l *Lexer) lexState {
 	}
 }
 
-func checkIfConstant(stType string, l *Lexer) (notConstant bool, i int) {
+func checkIfConstant(stType rune, l *Lexer) (notConstant bool, i int) {
 	for i = 1; ; i++ {
 		c := l.peek(i)
 
-		if string(c) == stType {
+		if c == stType {
 			i++
 			return
 		}

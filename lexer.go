@@ -42,7 +42,7 @@ func NewLexer(i io.Reader, filename string, lexFunction lexState) *Lexer {
 	res := &Lexer{
 		input:       bufio.NewReader(i),
 		filename:    filename,
-		items:       make(chan Item, 8),
+		items:       make(chan Item, 16),
 		startLine:   1,
 		currentLine: 1,
 	}
@@ -70,19 +70,19 @@ func (l *Lexer) write(s string) (int, error) {
 	return l.output.WriteString(s)
 }
 
-func (l *Lexer) NextItem() (*Item, error) {
+func (l *Lexer) NextItem() (Item, error) {
 	l.current = <-l.items
 	if l.current.Type == none {
 		l.current = Item{Type: TEof}
 	}
 	if l.current.Type == itemError {
-		return nil, errors.New(l.current.Data)
+		return l.Current(), errors.New(l.current.Data)
 	}
 	return l.Current(), nil
 }
 
-func (l *Lexer) Current() *Item {
-	return &l.current
+func (l *Lexer) Current() Item {
+	return l.current
 }
 
 func (l *Lexer) hasPrefix(s string) bool {
@@ -235,16 +235,23 @@ func (l *Lexer) peekAfterWhitespaces() rune {
 }
 
 func (l *Lexer) peekString(length, offset int) string {
+	var s []byte
+
 	switch {
 	case len(l.inputRst) >= length+offset:
-		return BytesToString(l.inputRst[offset : length+offset])
+		s = l.inputRst
 	case len(l.inputRst) == 0:
-		s, _ := l.input.Peek(length + offset)
-		return BytesToString(s[offset : length+offset])
+		s, _ = l.input.Peek(length + offset)
 	default:
-		s, _ := l.input.Peek(length + offset - len(l.inputRst))
-		return BytesToString(append(l.inputRst, s...)[offset : length+offset])
+		s, _ = l.input.Peek(length + offset - len(l.inputRst))
+		s = append(l.inputRst, s...)
 	}
+
+	if len(s) == 0 {
+		return ""
+	}
+
+	return BytesToString(s[offset : length+offset])
 }
 
 func (l *Lexer) peekAllUntilNotEscaped(str string) string {
