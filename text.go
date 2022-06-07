@@ -29,7 +29,7 @@ func lexOpen(l *Lexer) lexState {
 	if l.peek(0) == '=' {
 		l.next()
 		l.emit(TOpenTagWithEcho)
-		l.push(lex)
+		l.push(lexCode)
 		return l.base
 	}
 	l.acceptFixedI("php")
@@ -37,6 +37,6 @@ func lexOpen(l *Lexer) lexState {
 		return l.error("php tag should be followed by a whitespace")
 	}
 	l.emit(TOpenTag)
-	l.push(lex)
+	l.push(lexCode)
 	return l.base
 }

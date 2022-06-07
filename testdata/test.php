@@ -65,6 +65,7 @@ use Doctrine\ORM\Cache\AssociationCacheEntry;
  * @author      Roman Borschel <roman@code-factory.org>
  * @author      Rob Caiger <rob@clocal.co.uk>
  */
+#[\Attribute(\Attribute::TARGET_METHOD),\Attribute]
 class UnitOfWork implements PropertyChangedListener
 {
   /**

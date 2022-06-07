@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -3486,9 +3485,11 @@ class UnitOfWork implements PropertyChangedListener
 
 func BenchmarkLexer(b *testing.B) {
 	lexers := make([]*Lexer, b.N)
+	testFile, _ := os.Open("testdata/test.php")
+	defer testFile.Close()
 
 	for i := 0; i < len(lexers); i++ {
-		lexers[i] = NewLexer(strings.NewReader(code), "", nil)
+		lexers[i] = NewLexer(testFile, "", nil)
 	}
 
 	b.ReportAllocs()
@@ -3523,10 +3524,14 @@ func TestLexer(t *testing.T) {
 			position, _ := strconv.Atoi(token[2])
 			item, _ := lexer.NextItem()
 
-			assert.Equal(t, value, item.Data)
+			if !assert.Equal(t, value, item.Data) {
+				break
+			}
 
 			if tokenType != 0 || position != 0 {
-				assert.Equal(t, tokenType, int(item.Type))
+				if !assert.Equal(t, tokenType, int(item.Type)) {
+					break
+				}
 			}
 		} else {
 			//

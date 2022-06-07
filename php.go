@@ -1,12 +1,14 @@
 package tokenizer
 
-func lex(l *Lexer) lexState {
+import "unicode"
+
+func lexCode(l *Lexer) lexState {
 	// let's try to find out what we are dealing with
 	for {
 		c := l.peek(0)
 		switch c {
 		case ' ', '\r', '\n', '\t':
-			l.acceptRun(" \r\n\t")
+			l.acceptSpaces()
 			l.emit(TWhitespace)
 		case '(':
 			return lexPossibleCast
@@ -15,6 +17,10 @@ func lex(l *Lexer) lexState {
 		case '$':
 			return lexVariable
 		case '#':
+			if l.peek(1) == '[' {
+				return lexAttributes
+			}
+
 			return lexEolComment
 		case '/':
 			// check if // or /* (comments)
@@ -47,12 +53,13 @@ func lex(l *Lexer) lexState {
 		default:
 			// check for potential label start
 			switch {
-			case '0' <= c && c <= '9':
+			case unicode.IsDigit(c):
 				return lexNumber
-			case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', c == '_', 0x7f <= c, c == '\\':
+			case unicode.IsLetter(c), c == '_', 0x7f <= c, c == '\\':
 				return lexStringLabel
+			default:
+				return l.error("unexpected character %c", c)
 			}
-			return l.error("unexpected character %c", c)
 		}
 	}
 }
