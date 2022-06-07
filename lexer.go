@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/valyala/bytebufferpool"
-	. "go-php-tokenizer/internal"
 	"io"
 	"strings"
 	"unicode"
@@ -180,7 +179,7 @@ func (l *Lexer) backup() {
 }
 
 func (l *Lexer) peek(offset int) rune {
-	s := StringToBytes(l.peekString(1, offset))
+	s := stringToBytes(l.peekString(1, offset))
 	if len(s) == 0 {
 		return eof
 	}
@@ -251,7 +250,7 @@ func (l *Lexer) peekString(length, offset int) string {
 		return ""
 	}
 
-	return BytesToString(s[offset : length+offset])
+	return bytesToString(s[offset : length+offset])
 }
 
 func (l *Lexer) peekAllUntilNotEscaped(str string) string {
@@ -394,7 +393,7 @@ func (l *Lexer) acceptPhpLabel() string {
 
 		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || 0x7f <= c || c == '\\') {
 			l.backup()
-			return BytesToString(l.output.Bytes()[labelStart:])
+			return bytesToString(l.output.Bytes()[labelStart:])
 		}
 	}
 }

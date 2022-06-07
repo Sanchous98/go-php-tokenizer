@@ -1,4 +1,4 @@
-package internal
+package tokenizer
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,7 @@ func TestBytesToString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, BytesToString(tt.args), tt.want)
+			assert.Equal(t, bytesToString(tt.args), tt.want)
 		})
 	}
 }
@@ -48,7 +48,7 @@ func TestStringToBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, StringToBytes(tt.args), tt.want)
+			assert.Equal(t, stringToBytes(tt.args), tt.want)
 		})
 	}
 }
@@ -58,7 +58,7 @@ func BenchmarkBytesToString(b *testing.B) {
 	testRunes := []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~")
 
 	for i := 0; i < b.N; i++ {
-		_ = BytesToString(testRunes)
+		_ = bytesToString(testRunes)
 	}
 }
 
@@ -67,6 +67,6 @@ func BenchmarkStringToBytes(b *testing.B) {
 	testRunes := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+{}[]:;'\",./<>?`~"
 
 	for i := 0; i < b.N; i++ {
-		_ = StringToBytes(testRunes)
+		_ = stringToBytes(testRunes)
 	}
 }
