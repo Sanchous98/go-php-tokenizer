@@ -2,7 +2,6 @@ package tokenizer
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/valyala/bytebufferpool"
@@ -28,7 +27,7 @@ type Lexer struct {
 	base            lexState
 
 	inputRst []byte
-	output   bytes.Buffer
+	output   bytebufferpool.ByteBuffer
 
 	startLine, startChar       int // start line/char
 	currentLine, currentChar   int // current line/char
@@ -121,7 +120,7 @@ func (l *Lexer) next() rune {
 		r, l.width, err = l.input.ReadRune()
 		if err != nil {
 			if err != io.EOF {
-				l.error("%v", err)
+				l.error(fmt.Sprintf("%v", err))
 			}
 
 			return eof
@@ -129,12 +128,19 @@ func (l *Lexer) next() rune {
 	}
 
 	l.position += l.width
-	l.previousLine, l.previousChar = l.currentLine, l.currentChar
-	l.output.WriteRune(r)
-	l.currentChar += 1 // char counts in characters, not in bytes
+	l.previousChar = l.currentChar
+
+	if r < utf8.RuneSelf {
+		l.output.WriteByte(byte(r))
+	} else {
+		l.output.WriteString(string(r))
+	}
 	if r == '\n' {
+		l.previousLine = l.currentLine
 		l.currentLine += 1
 		l.currentChar = 0
+	} else {
+		l.currentChar += 1 // char counts in characters, not in bytes
 	}
 	return r
 }
@@ -330,11 +336,11 @@ func (l *Lexer) acceptSpace() bool {
 	return l.accept(" \t\r\n")
 }
 
-func (l *Lexer) acceptSpaces() string {
+func (l *Lexer) acceptSpaces() []byte {
 	return l.acceptRun(" \t\r\n")
 }
 
-func (l *Lexer) acceptRun(valid string) string {
+func (l *Lexer) acceptRun(valid string) []byte {
 	b := bytebufferpool.Get()
 	defer bytebufferpool.Put(b)
 
@@ -345,9 +351,13 @@ func (l *Lexer) acceptRun(valid string) string {
 			l.backup()
 			fallthrough
 		case v == eof:
-			return b.String()
+			return b.Bytes()
 		default:
-			b.WriteString(string(v))
+			if v < utf8.RuneSelf {
+				b.WriteByte(byte(v))
+			} else {
+				b.WriteString(string(v))
+			}
 		}
 	}
 }
@@ -398,11 +408,7 @@ func (l *Lexer) acceptPhpLabel() string {
 	}
 }
 
-func (l *Lexer) error(format string, args ...any) lexState {
-	l.items <- Item{
-		itemError,
-		fmt.Sprintf(format, args...),
-		Location{Filename: l.filename, Line: l.startLine, Char: l.startChar},
-	}
+func (l *Lexer) error(str string) lexState {
+	l.items <- Item{itemError, str, Location{l.filename, l.startLine, l.startChar}}
 	return nil
 }

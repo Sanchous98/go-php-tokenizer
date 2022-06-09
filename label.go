@@ -4,87 +4,6 @@ import (
 	"strings"
 )
 
-// PhpMagicKeywords can be hooked to add some extra reserved words
-var PhpMagicKeywords = map[string]ItemType{
-	"ABSTRACT":        TAbstract,
-	"ARRAY":           TArray,
-	"AS":              TAs,
-	"BREAK":           TBreak,
-	"CALLABLE":        TCallable,
-	"CASE":            TCase,
-	"CATCH":           TCatch,
-	"CLASS":           TClass,
-	"__CLASS__":       TClassC,
-	"CLONE":           TClone,
-	"CONST":           TConst,
-	"CONTINUE":        TContinue,
-	"DECLARE":         TDeclare,
-	"DEFAULT":         TDefault,
-	"__DIR__":         TDir,
-	"DO":              TDo,
-	"ECHO":            TEcho,
-	"ELSE":            TElse,
-	"ELSEIF":          TElseif,
-	"EMPTY":           TEmpty,
-	"ENDDECLARE":      TEnddeclare,
-	"ENDFOR":          TEndfor,
-	"ENDFOREACH":      TEndforeach,
-	"ENDIF":           TEndif,
-	"ENDSWITCH":       TEndswitch,
-	"ENDVAL":          TEndwhile,
-	"EVAL":            TEval,
-	"EXIT":            TExit,
-	"DIE":             TExit,
-	"EXTENDS":         TExtends,
-	"__FILE__":        TFile,
-	"FINAL":           TFinal,
-	"FINALLY":         TFinally,
-	"FOR":             TFor,
-	"FOREACH":         TForeach,
-	"FUNCTION":        TFunction,
-	"CFUNCTION":       TFunction, // ?
-	"__FUNCTION__":    TFuncC,
-	"GLOBAL":          TGlobal,
-	"GOTO":            TGoto,
-	"__HALT_COMPILER": THaltCompiler,
-	"IF":              TIf,
-	"IMPLEMENTS":      TImplements,
-	"INCLUDE":         TInclude,
-	"INCLUDE_ONCE":    TIncludeOnce,
-	"INSTANCEOF":      TInstanceof,
-	"INSTEADOF":       TInsteadof,
-	"INTERFACE":       TInterface,
-	"ISSET":           TIsset,
-	"__LINE__":        TLine,
-	"LIST":            TList,
-	"AND":             TLogicalAnd,
-	"OR":              TLogicalOr,
-	"XOR":             TLogicalXor,
-	"__METHOD__":      TMethodC,
-	"NAMESPACE":       TNamespace,
-	"__NAMESPACE__":   TNsC,
-	"NEW":             TNew,
-	"PRINT":           TPrint,
-	"PRIVATE":         TPrivate,
-	"PUBLIC":          TPublic,
-	"PROTECTED":       TProtected,
-	"REQUIRE":         TRequire,
-	"REQUIRE_ONCE":    TRequireOnce,
-	"RETURN":          TReturn,
-	"STATIC":          TStatic,
-	"SWITCH":          TSwitch,
-	"THROW":           TThrow,
-	"TRAIT":           TTrait,
-	"__TRAIT__":       TTraitC,
-	"TRY":             TTry,
-	"UNSET":           TUnset,
-	"USE":             TUse,
-	"VAR":             TVar,
-	"WHILE":           TWhile,
-	"YIELD":           TYield,
-	"YIELD FROM":      TYieldFrom,
-}
-
 func lexVariable(l *Lexer) lexState {
 	l.advance(1) // '$' (already confirmed)
 	if l.acceptPhpLabel() == "" {
@@ -97,14 +16,164 @@ func lexVariable(l *Lexer) lexState {
 }
 
 func labelType(lbl string) ItemType {
-	// check for PhpMagicKeywords
-	for keyword, itemType := range PhpMagicKeywords {
-		if strings.EqualFold(keyword, lbl) {
-			return itemType
-		}
+	switch strings.ToUpper(lbl) {
+	case "ABSTRACT":
+		return TAbstract
+	case "ARRAY":
+		return TArray
+	case "AS":
+		return TAs
+	case "BREAK":
+		return TBreak
+	case "CALLABLE":
+		return TCallable
+	case "CASE":
+		return TCase
+	case "CATCH":
+		return TCatch
+	case "CLASS":
+		return TClass
+	case "__CLASS__":
+		return TClassC
+	case "CLONE":
+		return TClone
+	case "CONST":
+		return TConst
+	case "CONTINUE":
+		return TContinue
+	case "DECLARE":
+		return TDeclare
+	case "DEFAULT":
+		return TDefault
+	case "__DIR__":
+		return TDir
+	case "DO":
+		return TDo
+	case "ECHO":
+		return TEcho
+	case "ELSE":
+		return TElse
+	case "ELSEIF":
+		return TElseif
+	case "EMPTY":
+		return TEmpty
+	case "ENDDECLARE":
+		return TEnddeclare
+	case "ENDFOR":
+		return TEndfor
+	case "ENDFOREACH":
+		return TEndforeach
+	case "ENDIF":
+		return TEndif
+	case "ENDSWITCH":
+		return TEndswitch
+	case "ENDVAL":
+		return TEndwhile
+	case "EVAL":
+		return TEval
+	case "EXIT":
+		return TExit
+	case "DIE":
+		return TExit
+	case "EXTENDS":
+		return TExtends
+	case "__FILE__":
+		return TFile
+	case "FINAL":
+		return TFinal
+	case "FINALLY":
+		return TFinally
+	case "FOR":
+		return TFor
+	case "FOREACH":
+		return TForeach
+	case "FUNCTION":
+		return TFunction
+	case "CFUNCTION":
+		return TFunction // ?
+	case "__FUNCTION__":
+		return TFuncC
+	case "GLOBAL":
+		return TGlobal
+	case "GOTO":
+		return TGoto
+	case "__HALT_COMPILER":
+		return THaltCompiler
+	case "IF":
+		return TIf
+	case "IMPLEMENTS":
+		return TImplements
+	case "INCLUDE":
+		return TInclude
+	case "INCLUDE_ONCE":
+		return TIncludeOnce
+	case "INSTANCEOF":
+		return TInstanceof
+	case "INSTEADOF":
+		return TInsteadof
+	case "INTERFACE":
+		return TInterface
+	case "ISSET":
+		return TIsset
+	case "__LINE__":
+		return TLine
+	case "LIST":
+		return TList
+	case "AND":
+		return TLogicalAnd
+	case "OR":
+		return TLogicalOr
+	case "XOR":
+		return TLogicalXor
+	case "__METHOD__":
+		return TMethodC
+	case "NAMESPACE":
+		return TNamespace
+	case "__NAMESPACE__":
+		return TNsC
+	case "NEW":
+		return TNew
+	case "PRINT":
+		return TPrint
+	case "PRIVATE":
+		return TPrivate
+	case "PUBLIC":
+		return TPublic
+	case "PROTECTED":
+		return TProtected
+	case "REQUIRE":
+		return TRequire
+	case "REQUIRE_ONCE":
+		return TRequireOnce
+	case "RETURN":
+		return TReturn
+	case "STATIC":
+		return TStatic
+	case "SWITCH":
+		return TSwitch
+	case "THROW":
+		return TThrow
+	case "TRAIT":
+		return TTrait
+	case "__TRAIT__":
+		return TTraitC
+	case "TRY":
+		return TTry
+	case "UNSET":
+		return TUnset
+	case "USE":
+		return TUse
+	case "VAR":
+		return TVar
+	case "WHILE":
+		return TWhile
+	case "YIELD":
+		return TYield
+	case "YIELD FROM":
+		return TYieldFrom
+	default:
+		return TString
 	}
-
-	return TString
 }
 
 func lexStringLabel(l *Lexer) lexState {

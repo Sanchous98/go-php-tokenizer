@@ -1,6 +1,9 @@
 package tokenizer
 
-import "unicode"
+import (
+	"fmt"
+	"unicode"
+)
 
 func lexCode(l *Lexer) lexState {
 	// let's try to find out what we are dealing with
@@ -58,7 +61,7 @@ func lexCode(l *Lexer) lexState {
 			case unicode.IsLetter(c), c == '_', 0x7f <= c, c == '\\':
 				return lexStringLabel
 			default:
-				return l.error("unexpected character %c", c)
+				return l.error(fmt.Sprintf("unexpected character %c", c))
 			}
 		}
 	}

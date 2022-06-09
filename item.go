@@ -1,9 +1,11 @@
 package tokenizer
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"runtime"
+	"strconv"
 )
 
 //go:generate stringer -type=ItemType -linecomment
@@ -210,7 +212,7 @@ func (i *Item) IsExpressionEnd() bool {
 
 func (i *Item) Unexpected() error {
 	_, f, l, _ := runtime.Caller(1)
-	return i.Errorf("syntax error from %s:%d, unexpected %s", path.Base(f), l, i)
+	return errors.New("syntax error from " + path.Base(f) + ":" + strconv.Itoa(l) + ", unexpected " + i.String())
 }
 
 func (i *Item) Location() Location {

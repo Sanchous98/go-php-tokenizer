@@ -19,3 +19,8 @@ func stringToBytes(str string) []byte {
 		Cap:  stringHeader.Len,
 	}))
 }
+
+func noescape[T any](value *T) *T {
+	v := uintptr(unsafe.Pointer(value))
+	return (*T)(unsafe.Pointer(v ^ 0))
+}
