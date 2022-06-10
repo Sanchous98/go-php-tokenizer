@@ -26,6 +26,7 @@ var Operators = map[string]ItemType{
 	"%=":  TModEqual,
 	"*=":  TMulEqual,
 	"->":  TObjectOperator,
+	"?->": TNullSafeObjectOperator,
 	"|=":  TOrEqual,
 	"+=":  TPlusEqual,
 	"**":  TPow,
