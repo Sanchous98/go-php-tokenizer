@@ -49,7 +49,7 @@ func TestLexer(t *testing.T) {
 			position, _ := strconv.Atoi(token[2])
 			item, _ := lexer.NextItem()
 
-			if !assert.Equal(t, value, string(item.Data)) {
+			if !assert.Equal(t, value, item.Data) {
 				break
 			}
 

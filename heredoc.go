@@ -8,20 +8,24 @@ func lexHeredoc(l *Lexer) lexState {
 	}
 	l.acceptSpaces()
 
-	op := l.acceptPhpLabel()
-	if op == "" {
-		l.Reset()
-		return lexOperator
+	var isNowDoc bool
+	var op string
+
+	if l.peek(0) == '\'' {
+		isNowDoc = true
+		l.next()
+		op = l.acceptPhpLabel()
+		l.next()
+	} else {
+		op = l.acceptPhpLabel()
 	}
 
-	if !l.accept("\r\n") {
+	if op == "" || !l.accept("\r\n") {
 		l.Reset()
 		return lexOperator
 	}
 
 	l.emit(TStartHeredoc)
-
-	op = "\n" + op
 
 	for {
 		if l.hasPrefix(op) {
@@ -30,12 +34,10 @@ func lexHeredoc(l *Lexer) lexState {
 			}
 			l.advance(len(op))
 			l.emit(TEndHeredoc)
-			break
+			return l.base
 		}
 
-		c := l.peek(0)
-
-		switch c {
+		switch c := l.peek(0); c {
 		case eof:
 			l.emit(TEncapsedAndWhitespace)
 			//l.error("unexpected eof in heredoc")
@@ -43,17 +45,24 @@ func lexHeredoc(l *Lexer) lexState {
 		case '\\':
 			// advance (ignore) one
 			l.next() // \
+
+			if isNowDoc {
+				continue
+			}
+
 			l.next() // the escaped char
 		case '$':
+			if isNowDoc {
+				l.next()
+				continue
+			}
 			// this is a variable
 			if l.position > l.start {
 				l.emit(TEncapsedAndWhitespace)
 			}
-			lexVariable(l) // meh
+			lexVariable(l)
 		default:
 			l.next()
 		}
 	}
-
-	return l.base
 }

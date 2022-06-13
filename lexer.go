@@ -403,7 +403,7 @@ func (l *Lexer) acceptPhpLabel() string {
 
 		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || 0x7f <= c || c == '\\') {
 			l.backup()
-			return bytesToString(l.output.Bytes()[labelStart:])
+			return string(l.output.Bytes()[labelStart:])
 		}
 	}
 }
