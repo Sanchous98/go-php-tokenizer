@@ -49,12 +49,12 @@ func TestLexer(t *testing.T) {
 			position, _ := strconv.Atoi(token[2])
 			item, _ := lexer.NextItem()
 
-			if !assert.Equal(t, value, item.Data) {
+			if !assert.Equal(t, value, item.Data, "error at line %d", position) {
 				break
 			}
 
 			if tokenType != 0 || position != 0 {
-				if !assert.Equal(t, tokenType, int(item.Type)) {
+				if !assert.Equal(t, tokenType, int(item.Type), "error at line %d", position) {
 					break
 				}
 			}

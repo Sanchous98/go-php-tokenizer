@@ -125,6 +125,23 @@ func (l *Lexer) next() rune {
 
 			return eof
 		}
+
+		if r == '\r' {
+			peek, _ := l.input.Peek(1)
+
+			if peek[0] == '\n' {
+				// Normalize CRLF line breaks
+				r, l.width, err = l.input.ReadRune()
+
+				if err != nil {
+					if err != io.EOF {
+						l.error(fmt.Sprintf("%v", err))
+					}
+
+					return eof
+				}
+			}
+		}
 	}
 
 	l.position += l.width
