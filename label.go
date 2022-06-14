@@ -125,6 +125,8 @@ func labelType(lbl string) ItemType {
 		return TLogicalOr
 	case "XOR":
 		return TLogicalXor
+	case "MATCH":
+		return TMatch
 	case "__METHOD__":
 		return TMethodC
 	case "NAMESPACE":
